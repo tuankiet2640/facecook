@@ -1,0 +1,60 @@
+[workspace]
+members = [
+    "crates/shared",
+    "crates/gateway",
+    "crates/user-service",
+    "crates/feed-service",
+    "crates/post-service",
+    "crates/chat-service",
+    "crates/presence-service",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# async runtime
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7", features = ["ws", "macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["trace", "cors", "compression-gzip"] }
+
+# db
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }
+
+# cache
+deadpool-redis = { version = "0.14" }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# kafka
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+
+# serde
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# auth
+jsonwebtoken = "9"
+argon2 = "0.5"
+
+# errors
+thiserror = "1"
+anyhow = "1"
+
+# observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+metrics = "0.22"
+metrics-exporter-prometheus = "0.13"
+
+# utils
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+config = "0.14"
+dotenvy = "0.15"
+validator = { version = "0.17", features = ["derive"] }
+async-trait = "0.1"
+futures = "0.3"
+bytes = "1"
+dashmap = "5"
+url = "2"
+rand = "0.8"
