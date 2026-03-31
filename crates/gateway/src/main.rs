@@ -18,6 +18,9 @@ pub struct GatewayState {
     pub jwt_service: Arc<JwtService>,
     pub cache: Arc<CacheClient>,
     pub config: Arc<AppConfig>,
+    /// Shared HTTP client for proxying requests to downstream services.
+    /// reqwest::Client holds a connection pool internally — reuse it.
+    pub http_client: reqwest::Client,
 }
 
 #[tokio::main]
@@ -36,10 +39,19 @@ async fn main() -> anyhow::Result<()> {
         config.auth.jwt_expiry_secs,
     ));
 
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(
+            config.server.request_timeout_secs,
+        ))
+        .pool_max_idle_per_host(50)
+        .build()
+        .expect("Failed to build HTTP client");
+
     let state = Arc::new(GatewayState {
         jwt_service,
         cache,
         config: Arc::new(config.clone()),
+        http_client,
     });
 
     let app = router::build_router(state);

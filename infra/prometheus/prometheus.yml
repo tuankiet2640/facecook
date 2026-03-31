@@ -1,0 +1,47 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: development
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:9090"]
+    metrics_path: /metrics
+
+  - job_name: user-service
+    static_configs:
+      - targets: ["user-service:9090"]
+    metrics_path: /metrics
+
+  - job_name: post-service
+    static_configs:
+      - targets: ["post-service:9090"]
+    metrics_path: /metrics
+
+  - job_name: feed-service
+    static_configs:
+      - targets: ["feed-service:9090"]
+    metrics_path: /metrics
+
+  - job_name: chat-service
+    static_configs:
+      - targets: ["chat-service:9090"]
+    metrics_path: /metrics
+
+  - job_name: presence-service
+    static_configs:
+      - targets: ["presence-service:9090"]
+    metrics_path: /metrics

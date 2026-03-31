@@ -1,0 +1,336 @@
+version: "3.9"
+
+# ── Facecook — Local Development Stack ────────────────────────────────────────
+#
+# Services:
+#   Infrastructure: postgres, redis, kafka, zookeeper
+#   Application:    gateway, user-service, post-service, feed-service,
+#                   chat-service, presence-service
+#   Observability:  prometheus, grafana
+#
+# Usage:
+#   docker compose up -d          # start everything
+#   docker compose up gateway     # start with live logs
+#   docker compose logs -f        # follow all logs
+#
+# Healthcheck note: application services wait for postgres and redis to be
+# healthy before starting, preventing "connection refused" startup races.
+# ──────────────────────────────────────────────────────────────────────────────
+
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - facecook
+
+x-app-env: &app-env
+  RUST_LOG: "info,sqlx=warn"
+  ENVIRONMENT: development
+  DATABASE__MAX_CONNECTIONS: "10"
+  DATABASE__MIN_CONNECTIONS: "2"
+  DATABASE__CONNECT_TIMEOUT_SECS: "10"
+  DATABASE__ACQUIRE_TIMEOUT_SECS: "5"
+  REDIS__URL: "redis://redis:6379"
+  REDIS__POOL_SIZE: "10"
+  REDIS__FEED_TTL_SECS: "86400"
+  REDIS__PRESENCE_TTL_SECS: "60"
+  REDIS__SESSION_TTL_SECS: "3600"
+  KAFKA__BROKERS: "kafka:9092"
+  KAFKA__POST_EVENTS_TOPIC: "post.events"
+  KAFKA__FEED_FANOUT_TOPIC: "feed.fanout"
+  KAFKA__CHAT_MESSAGES_TOPIC: "chat.messages"
+  KAFKA__NOTIFICATION_TOPIC: "notifications"
+  KAFKA__MESSAGE_TIMEOUT_MS: "5000"
+  AUTH__JWT_SECRET: "change-me-in-production-use-a-256-bit-secret"
+  AUTH__JWT_EXPIRY_SECS: "3600"
+  AUTH__JWT_REFRESH_EXPIRY_SECS: "604800"
+  FEED__CELEBRITY_THRESHOLD: "10000"
+  FEED__MAX_FEED_SIZE: "1000"
+  FEED__FEED_PAGE_SIZE: "20"
+  FEED__POST_CACHE_TTL_SECS: "3600"
+  SERVER__HOST: "0.0.0.0"
+  SERVER__REQUEST_TIMEOUT_SECS: "30"
+  SERVER__MAX_REQUEST_BODY_BYTES: "10485760"
+
+services:
+
+  # ── Infrastructure ───────────────────────────────────────────────────────────
+
+  postgres:
+    <<: *service-common
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: facecook
+      POSTGRES_PASSWORD: facecook
+      POSTGRES_DB: facecook
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Run all migrations on first start
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U facecook -d facecook"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    <<: *service-common
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  zookeeper:
+    <<: *service-common
+    image: confluentinc/cp-zookeeper:7.6.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    <<: *service-common
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 6
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    ports:
+      - "29092:29092"  # Host access for tools (kafka-ui, etc.)
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # ── Application Services ─────────────────────────────────────────────────────
+
+  gateway:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: gateway
+    environment:
+      <<: *app-env
+      SERVICE_NAME: gateway
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      SERVER__PORT: "8080"
+    ports:
+      - "8080:8080"    # Public API
+      - "9090:9090"    # Prometheus metrics
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  user-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: user-service
+    environment:
+      <<: *app-env
+      SERVICE_NAME: user-service
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      KAFKA__CONSUMER_GROUP_ID: "user-service"
+      SERVER__PORT: "8081"
+    ports:
+      - "8081:8081"
+      - "9091:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  feed-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: feed-service
+    environment:
+      <<: *app-env
+      SERVICE_NAME: feed-service
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      KAFKA__CONSUMER_GROUP_ID: "feed-service"
+      SERVER__PORT: "8082"
+    ports:
+      - "8082:8082"
+      - "9092:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  post-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: post-service
+    environment:
+      <<: *app-env
+      SERVICE_NAME: post-service
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      KAFKA__CONSUMER_GROUP_ID: "post-service"
+      SERVER__PORT: "8083"
+    ports:
+      - "8083:8083"
+      - "9093:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  chat-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: chat-service
+    environment:
+      <<: *app-env
+      SERVICE_NAME: chat-service
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      KAFKA__CONSUMER_GROUP_ID: "chat-service"
+      SERVER__PORT: "8084"
+    ports:
+      - "8084:8084"    # REST + WebSocket
+      - "9094:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  presence-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: presence-service
+    environment:
+      <<: *app-env
+      SERVICE_NAME: presence-service
+      DATABASE__URL: "postgresql://facecook:facecook@postgres:5432/facecook"
+      KAFKA__CONSUMER_GROUP_ID: "presence-service"
+      SERVER__PORT: "8085"
+    ports:
+      - "8085:8085"
+      - "9095:9090"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── Observability ────────────────────────────────────────────────────────────
+
+  prometheus:
+    <<: *service-common
+    image: prom/prometheus:v2.51.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9100:9090"
+    volumes:
+      - ./infra/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    <<: *service-common
+    image: grafana/grafana:10.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/facecook.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ── Development Tools ────────────────────────────────────────────────────────
+
+  kafka-ui:
+    <<: *service-common
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_logs:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  facecook:
+    driver: bridge
