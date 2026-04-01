@@ -31,6 +31,14 @@ Thumbs.db
 debug/
 release/
 
+# UI (Node / Vite)
+ui/node_modules/
+ui/dist/
+ui/.env.local
+ui/.env.*.local
+ui/dist-ssr/
+ui/*.local
+
 # Database files (if any local SQLite, etc.)
 *.db
 *.sqlite
