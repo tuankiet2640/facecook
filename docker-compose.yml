@@ -5,7 +5,7 @@ version: "3.9"
 # Services:
 #   Infrastructure: postgres, redis, kafka, zookeeper
 #   Application:    gateway, user-service, post-service, feed-service,
-#                   chat-service, presence-service
+#                   chat-service, presence-service, ui
 #   Observability:  prometheus, grafana
 #
 # Usage:
@@ -272,6 +272,19 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+
+  ui:
+    <<: *service-common
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80"    # http://localhost:3001
+    depends_on:
+      - gateway
+      - chat-service
 
   # ── Observability ────────────────────────────────────────────────────────────
 
