@@ -5,7 +5,7 @@
 # invalidate the dependency cache — critical for <60s CI rebuild times.
 #
 # ARG SERVICE controls which binary is built (e.g. gateway, user-service).
-FROM rust:1.80-bookworm AS chef
+FROM rust:1.88-bookworm AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /app
 
