@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Thin, minimal scrollbar consistent with the dark theme */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Remove default blue outline, use focus-visible ring instead */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
