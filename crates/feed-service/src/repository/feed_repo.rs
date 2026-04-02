@@ -82,7 +82,7 @@ impl FeedRepository {
         &self,
         post_id: Uuid,
         author_id: Uuid,
-        timestamp_ms: i64,
+        _timestamp_ms: i64,
     ) -> AppResult<()> {
         sqlx::query!(
             r#"

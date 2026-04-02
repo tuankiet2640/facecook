@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use metrics::counter;
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use shared::{
     cache::CacheClient,
     config::FeedConfig,
     errors::{AppError, AppResult},
-    kafka::KafkaProducer,
 };
 
 use crate::{

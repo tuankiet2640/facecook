@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::Router;
 use tokio::net::TcpListener;
 use tower_http::{
     compression::CompressionLayer,

@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use shared::models::message::{Message, MessageType};
-
 /// Published to Kafka when a message is sent but recipient is offline.
 /// Consumed by notification service to push a mobile push notification.
 #[derive(Debug, Clone, Serialize, Deserialize)]

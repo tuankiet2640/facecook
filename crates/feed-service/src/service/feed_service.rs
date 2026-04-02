@@ -5,7 +5,7 @@ use uuid::Uuid;
 use shared::errors::AppResult;
 
 use crate::{
-    domain::models::{FeedItem, FeedResponse},
+    domain::models::FeedResponse,
     service::fanout_service::FanoutService,
 };
 

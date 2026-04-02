@@ -4,7 +4,7 @@ use std::time::Duration;
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
+    http::{HeaderName, HeaderValue, StatusCode},
     middleware as axum_middleware,
     response::Response,
     routing::{any, get},
@@ -20,7 +20,7 @@ use tower_http::{
 use shared::observability::health_check;
 
 use crate::{
-    middleware::{auth::auth_middleware, rate_limit::RateLimitLayer},
+    middleware::auth::auth_middleware,
     GatewayState,
 };
 

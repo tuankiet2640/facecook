@@ -1,7 +1,6 @@
 use deadpool_redis::{Config as RedisPoolConfig, Pool, Runtime};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::config::RedisConfig;
 use crate::errors::AppError;

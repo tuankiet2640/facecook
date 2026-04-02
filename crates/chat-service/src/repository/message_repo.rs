@@ -183,7 +183,7 @@ impl MessageRepository {
                 LIMIT $3
                 "#,
                 conversation_id,
-                before_sequence,
+                before_seq,
                 limit
             )
             .fetch_all(&self.pool)

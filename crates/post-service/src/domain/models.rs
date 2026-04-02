@@ -1,5 +1,4 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use serde::Deserialize;
 use validator::Validate;
 
 use shared::models::post::PostVisibility;

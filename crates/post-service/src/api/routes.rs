@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, Query, State},
     http::HeaderMap,
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};

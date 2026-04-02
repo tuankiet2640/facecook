@@ -1,14 +1,14 @@
 use rdkafka::{
     config::ClientConfig,
-    consumer::{CommitMode, Consumer, StreamConsumer},
-    message::{Headers, Message, OwnedHeaders},
+    consumer::{Consumer, StreamConsumer},
+    message::OwnedHeaders,
     producer::{FutureProducer, FutureRecord},
     util::Timeout,
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::timeout;
-use tracing::{error, info, warn};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::config::KafkaConfig;
