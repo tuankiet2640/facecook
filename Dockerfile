@@ -33,6 +33,9 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
 # Copy source and build the target service binary.
+# SQLX_OFFLINE=true uses pre-generated .sqlx query cache instead of a live DB.
+# Generate the cache locally with: cargo sqlx prepare --workspace
+ENV SQLX_OFFLINE=true
 COPY . .
 RUN cargo build --release --bin "$SERVICE"
 
