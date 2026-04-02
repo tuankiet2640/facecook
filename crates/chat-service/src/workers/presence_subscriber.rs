@@ -35,10 +35,11 @@ impl PresenceSubscriber {
         let client = redis::Client::open(self.redis_url.as_str())
             .map_err(|e| shared::errors::AppError::Cache(e.to_string()))?;
 
-        let mut pubsub = client
-            .get_async_pubsub()
+        let conn = client
+            .get_async_connection()
             .await
             .map_err(|e| shared::errors::AppError::Cache(e.to_string()))?;
+        let mut pubsub = conn.into_pubsub();
 
         pubsub
             .subscribe(crate::service::chat_service::PRESENCE_CHANNEL)
