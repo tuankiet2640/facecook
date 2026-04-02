@@ -42,6 +42,14 @@ pub struct JwtService {
     validation: Validation,
 }
 
+impl std::fmt::Debug for JwtService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JwtService")
+            .field("expiry_secs", &self.expiry_secs)
+            .finish_non_exhaustive()
+    }
+}
+
 impl JwtService {
     pub fn new(secret: &str, expiry_secs: u64) -> Self {
         let mut validation = Validation::new(Algorithm::HS256);
@@ -74,6 +82,10 @@ impl JwtService {
 
         encode(&Header::default(), &claims, &self.encoding_key)
             .map_err(|e| AppError::Unauthorized(e.to_string()))
+    }
+
+    pub fn expiry_secs(&self) -> u64 {
+        self.expiry_secs
     }
 
     /// Validate a JWT string and return its claims if valid.

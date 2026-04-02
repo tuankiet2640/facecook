@@ -69,8 +69,20 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features native-tls,postgres
+
+    - name: Run database migrations
+      run: sqlx migrate run
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost/facecook
+
     - name: Build
       run: cargo build --workspace --verbose
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost/facecook
 
     - name: Run tests
       run: cargo test --workspace --verbose
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost/facecook

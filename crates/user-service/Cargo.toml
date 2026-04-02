@@ -34,3 +34,4 @@ deadpool-redis = { workspace = true }
 redis = { workspace = true }
 rdkafka = { workspace = true }
 rand = { workspace = true }
+dotenvy = { workspace = true }

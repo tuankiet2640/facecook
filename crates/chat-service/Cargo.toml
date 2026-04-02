@@ -32,3 +32,4 @@ deadpool-redis = { workspace = true }
 redis = { workspace = true }
 rdkafka = { workspace = true }
 dashmap = { workspace = true }
+dotenvy = { workspace = true }

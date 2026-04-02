@@ -112,7 +112,7 @@ impl UserService {
     }
 
     /// Authenticate a user and return a JWT access token.
-    #[instrument(skip(self, req), fields(email = %req.email))]
+    #[instrument(skip(self, req, jwt_service), fields(email = %req.email))]
     pub async fn login(
         &self,
         req: LoginRequest,
@@ -312,10 +312,3 @@ fn user_cache_key(user_id: Uuid) -> String {
     format!("user:profile:{}", user_id)
 }
 
-// Make expiry_secs accessible for building AuthResponse
-impl shared::auth::JwtService {
-    pub fn expiry_secs(&self) -> u64 {
-        // Re-exposed via config; this is a convenience accessor
-        3600
-    }
-}
