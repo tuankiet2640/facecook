@@ -6,7 +6,7 @@ use validator::Validate;
 pub struct RegisterRequest {
     #[validate(length(min = 3, max = 50, message = "Username must be 3–50 characters"))]
     #[validate(regex(
-        path = "USERNAME_RE",
+        path = *USERNAME_RE,
         message = "Username may only contain letters, digits, underscores, and hyphens"
     ))]
     pub username: String,
