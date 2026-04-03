@@ -7,85 +7,19 @@ on:
     branches: [ main, dev1 ]
 
 jobs:
-  build:
+  compose:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: facecook
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y \
-          libcurl4-openssl-dev \
-          libsasl2-dev \
-          libssl-dev \
-          pkg-config \
-          cmake
+      - name: Build and start services
+        run: docker compose up -d --build
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      - name: Run tests
+        run: docker compose exec -T app cargo test --workspace --verbose
 
-    - name: Cache cargo registry
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Install sqlx-cli
-      run: cargo install sqlx-cli --no-default-features --features native-tls,postgres
-
-    - name: Run database migrations
-      run: sqlx migrate run
-      env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/facecook
-
-    - name: Build
-      run: cargo build --workspace --verbose
-      env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/facecook
-
-    - name: Run tests
-      run: cargo test --workspace --verbose
-      env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/facecook
+      - name: Shutdown
+        if: always()
+        run: docker compose down
+``
