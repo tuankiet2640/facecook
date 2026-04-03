@@ -15,6 +15,7 @@ CREATE TABLE users (
     follower_count  BIGINT NOT NULL DEFAULT 0,
     following_count BIGINT NOT NULL DEFAULT 0,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
