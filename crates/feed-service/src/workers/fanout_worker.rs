@@ -94,18 +94,23 @@ impl FanoutWorker {
 
                     // Detect event type from header or JSON field
                     let event_type = message
-                        .headers()
-                        .and_then(|h| {
-                            (0..h.count()).find_map(|i| {
-                                let header = h.get(i);
-                                if header.key == "event_type" {
-                                    header.value.and_then(|v| std::str::from_utf8(v).ok()).map(String::from)
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                        .unwrap_or_default();
+    .headers()
+    .and_then(|h| {
+        for i in 0..h.count() {
+            if let Some(header) = h.get_at(i) {
+                if header.key == "event_type" {
+                    if let Some(value_bytes) = header.value {
+                        if let Ok(value_str) = std::str::from_utf8(value_bytes) {
+                            return Some(value_str.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        None
+    })
+    .unwrap_or_default();
+
 
                     let result = match event_type.as_str() {
                         "post.created" => {
