@@ -4,10 +4,7 @@ use uuid::Uuid;
 
 use shared::errors::AppResult;
 
-use crate::{
-    domain::models::FeedResponse,
-    service::fanout_service::FanoutService,
-};
+use crate::{domain::models::FeedResponse, service::fanout_service::FanoutService};
 
 pub struct FeedService {
     fanout: Arc<FanoutService>,
@@ -32,10 +29,7 @@ impl FeedService {
         cursor: Option<f64>,
         limit: Option<i32>,
     ) -> AppResult<FeedResponse> {
-        let page_size = limit
-            .unwrap_or(self.feed_page_size)
-            .min(100)
-            .max(1);
+        let page_size = limit.unwrap_or(self.feed_page_size).min(100).max(1);
 
         // Fetch one extra to detect if there are more pages
         let items = self

@@ -53,11 +53,7 @@ impl PostService {
     /// The DB write is the source of truth. Cache and Kafka are best-effort.
     /// Feed fanout is async — followers may see a slight delay (< 1s typical).
     #[instrument(skip(self, req), fields(author_id = %author_id))]
-    pub async fn create_post(
-        &self,
-        author_id: Uuid,
-        req: CreatePostRequest,
-    ) -> AppResult<Post> {
+    pub async fn create_post(&self, author_id: Uuid, req: CreatePostRequest) -> AppResult<Post> {
         let visibility = req.visibility.unwrap_or(PostVisibility::Public);
         let media_urls = serde_json::json!(req.media_urls);
 

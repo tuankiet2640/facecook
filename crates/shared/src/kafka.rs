@@ -71,8 +71,7 @@ impl KafkaProducer {
         key: &str,
         event: &KafkaEvent<T>,
     ) -> Result<(), AppError> {
-        let payload =
-            serde_json::to_vec(event).map_err(|e| AppError::Queue(e.to_string()))?;
+        let payload = serde_json::to_vec(event).map_err(|e| AppError::Queue(e.to_string()))?;
 
         let headers = OwnedHeaders::new()
             .insert(rdkafka::message::Header {
@@ -91,12 +90,7 @@ impl KafkaProducer {
 
         let delivery_timeout = Duration::from_millis(self.config.message_timeout_ms);
 
-        match timeout(
-            delivery_timeout,
-            self.producer.send(record, Timeout::Never),
-        )
-        .await
-        {
+        match timeout(delivery_timeout, self.producer.send(record, Timeout::Never)).await {
             Ok(Ok((partition, offset))) => {
                 tracing::debug!(
                     topic = topic,
@@ -122,10 +116,7 @@ impl KafkaProducer {
 
 /// Create a Kafka consumer configured for at-least-once delivery.
 /// Manual offset commit ensures messages are not lost on crash.
-pub fn create_consumer(
-    config: &KafkaConfig,
-    topics: &[&str],
-) -> Result<StreamConsumer, AppError> {
+pub fn create_consumer(config: &KafkaConfig, topics: &[&str]) -> Result<StreamConsumer, AppError> {
     let consumer: StreamConsumer = ClientConfig::new()
         .set("bootstrap.servers", &config.brokers)
         .set("group.id", &config.consumer_group_id)

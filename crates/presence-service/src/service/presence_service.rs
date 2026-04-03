@@ -62,7 +62,9 @@ impl PresenceService {
             last_seen: Utc::now(),
         };
         // Keep the offline record for 1 hour so "last seen" queries are accurate.
-        self.cache.set(&presence_key(user_id), &status, 3600).await?;
+        self.cache
+            .set(&presence_key(user_id), &status, 3600)
+            .await?;
         self.publish_event(user_id, false).await
     }
 

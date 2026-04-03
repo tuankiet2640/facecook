@@ -8,12 +8,12 @@ use crate::errors::AppError;
 /// jti enables token revocation by tracking invalidated IDs in Redis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: Uuid,       // user_id (standard JWT subject)
+    pub sub: Uuid, // user_id (standard JWT subject)
     pub username: String,
     pub email: String,
-    pub iat: i64,        // issued-at (unix timestamp)
-    pub exp: i64,        // expiry (unix timestamp)
-    pub jti: String,     // JWT ID for revocation tracking
+    pub iat: i64,    // issued-at (unix timestamp)
+    pub exp: i64,    // expiry (unix timestamp)
+    pub jti: String, // JWT ID for revocation tracking
 }
 
 /// Authenticated user context extracted from validated JWT.

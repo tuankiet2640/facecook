@@ -158,7 +158,9 @@ impl UserRepository {
         .await?;
 
         if existing.is_some() {
-            return Err(AppError::Conflict("Already following this user".to_string()));
+            return Err(AppError::Conflict(
+                "Already following this user".to_string(),
+            ));
         }
 
         sqlx::query!(
@@ -202,7 +204,9 @@ impl UserRepository {
         .await?;
 
         if deleted.rows_affected() == 0 {
-            return Err(AppError::NotFound("Follow relationship not found".to_string()));
+            return Err(AppError::NotFound(
+                "Follow relationship not found".to_string(),
+            ));
         }
 
         sqlx::query!(

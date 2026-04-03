@@ -7,10 +7,7 @@ use axum::{
 };
 use metrics::counter;
 
-use shared::{
-    auth::extract_bearer_token,
-    errors::AppError,
-};
+use shared::{auth::extract_bearer_token, errors::AppError};
 
 use crate::GatewayState;
 

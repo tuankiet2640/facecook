@@ -19,10 +19,7 @@ use tower_http::{
 
 use shared::observability::health_check;
 
-use crate::{
-    middleware::auth::auth_middleware,
-    GatewayState,
-};
+use crate::{middleware::auth::auth_middleware, GatewayState};
 
 /// Upstream service base URLs.
 /// In production these come from service discovery / env vars.
@@ -73,38 +70,23 @@ fn api_routes(state: Arc<GatewayState>) -> Router<Arc<GatewayState>> {
 
 // ── Per-service proxy handlers ─────────────────────────────────────────────────
 
-async fn proxy_user_service(
-    State(state): State<Arc<GatewayState>>,
-    req: Request,
-) -> Response {
+async fn proxy_user_service(State(state): State<Arc<GatewayState>>, req: Request) -> Response {
     proxy_request(&state.http_client, req, USER_SERVICE_URL).await
 }
 
-async fn proxy_post_service(
-    State(state): State<Arc<GatewayState>>,
-    req: Request,
-) -> Response {
+async fn proxy_post_service(State(state): State<Arc<GatewayState>>, req: Request) -> Response {
     proxy_request(&state.http_client, req, POST_SERVICE_URL).await
 }
 
-async fn proxy_feed_service(
-    State(state): State<Arc<GatewayState>>,
-    req: Request,
-) -> Response {
+async fn proxy_feed_service(State(state): State<Arc<GatewayState>>, req: Request) -> Response {
     proxy_request(&state.http_client, req, FEED_SERVICE_URL).await
 }
 
-async fn proxy_chat_service(
-    State(state): State<Arc<GatewayState>>,
-    req: Request,
-) -> Response {
+async fn proxy_chat_service(State(state): State<Arc<GatewayState>>, req: Request) -> Response {
     proxy_request(&state.http_client, req, CHAT_SERVICE_URL).await
 }
 
-async fn proxy_presence_service(
-    State(state): State<Arc<GatewayState>>,
-    req: Request,
-) -> Response {
+async fn proxy_presence_service(State(state): State<Arc<GatewayState>>, req: Request) -> Response {
     proxy_request(&state.http_client, req, PRESENCE_SERVICE_URL).await
 }
 
@@ -137,7 +119,11 @@ async fn proxy_request(client: &reqwest::Client, req: Request, upstream: &str) -
         Ok(b) => b,
         Err(e) => {
             tracing::error!(error = %e, "Failed to read request body");
-            return error_response(StatusCode::BAD_REQUEST, "BODY_READ_ERROR", "Failed to read request body");
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "BODY_READ_ERROR",
+                "Failed to read request body",
+            );
         }
     };
 
@@ -178,16 +164,28 @@ async fn proxy_request(client: &reqwest::Client, req: Request, upstream: &str) -
             }
 
             let body = upstream_resp.bytes().await.unwrap_or_default();
-            response_builder
-                .body(Body::from(body))
-                .unwrap_or_else(|_| error_response(StatusCode::INTERNAL_SERVER_ERROR, "PROXY_ERROR", "Failed to build response"))
+            response_builder.body(Body::from(body)).unwrap_or_else(|_| {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "PROXY_ERROR",
+                    "Failed to build response",
+                )
+            })
         }
         Err(e) => {
             tracing::error!(error = %e, upstream = upstream, "Upstream request failed");
             if e.is_timeout() {
-                error_response(StatusCode::GATEWAY_TIMEOUT, "GATEWAY_TIMEOUT", "Upstream service timed out")
+                error_response(
+                    StatusCode::GATEWAY_TIMEOUT,
+                    "GATEWAY_TIMEOUT",
+                    "Upstream service timed out",
+                )
             } else {
-                error_response(StatusCode::BAD_GATEWAY, "BAD_GATEWAY", "Upstream service unavailable")
+                error_response(
+                    StatusCode::BAD_GATEWAY,
+                    "BAD_GATEWAY",
+                    "Upstream service unavailable",
+                )
             }
         }
     }

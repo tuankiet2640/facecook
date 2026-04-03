@@ -10,10 +10,7 @@ use shared::{
     errors::{AppError, AppResult},
 };
 
-use crate::{
-    domain::models::FeedItem,
-    repository::feed_repo::FeedRepository,
-};
+use crate::{domain::models::FeedItem, repository::feed_repo::FeedRepository};
 
 /// Hybrid fanout service implementing the celebrity problem solution.
 ///
@@ -66,7 +63,11 @@ impl FanoutService {
 
         info!(
             follower_count = follower_count,
-            strategy = if use_write_fanout { "fanout-on-write" } else { "fanout-on-read" },
+            strategy = if use_write_fanout {
+                "fanout-on-write"
+            } else {
+                "fanout-on-read"
+            },
             threshold = self.config.celebrity_threshold,
             "Executing fanout"
         );
@@ -76,12 +77,12 @@ impl FanoutService {
                 .await?;
             counter!("feed_fanout_total", "strategy" => "write").increment(1);
         } else {
-            self.fanout_on_read(post_id, author_id, timestamp_score).await?;
+            self.fanout_on_read(post_id, author_id, timestamp_score)
+                .await?;
             counter!("feed_fanout_total", "strategy" => "read").increment(1);
         }
 
-        metrics::histogram!("feed_fanout_duration_seconds")
-            .record(start.elapsed().as_secs_f64());
+        metrics::histogram!("feed_fanout_duration_seconds").record(start.elapsed().as_secs_f64());
 
         Ok(())
     }
@@ -158,12 +159,7 @@ impl FanoutService {
     ///
     /// O(1) write. The post is indexed by author_id in Redis + persisted to DB.
     /// At read time, merge with personal feed for each requesting user.
-    async fn fanout_on_read(
-        &self,
-        post_id: Uuid,
-        author_id: Uuid,
-        score: f64,
-    ) -> AppResult<()> {
+    async fn fanout_on_read(&self, post_id: Uuid, author_id: Uuid, score: f64) -> AppResult<()> {
         let key = celebrity_posts_key(author_id);
         let member = post_id.to_string();
 

@@ -16,10 +16,8 @@ pub async fn tracing_middleware(mut req: Request, next: Next) -> Response {
     let start = Instant::now();
 
     // Inject request ID so downstream services can log it
-    req.headers_mut().insert(
-        "x-request-id",
-        request_id.parse().unwrap(),
-    );
+    req.headers_mut()
+        .insert("x-request-id", request_id.parse().unwrap());
 
     let span = tracing::info_span!(
         "http_request",

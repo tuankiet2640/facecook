@@ -24,10 +24,7 @@ mod service;
 mod workers;
 
 use repository::feed_repo::FeedRepository;
-use service::{
-    fanout_service::FanoutService,
-    feed_service::FeedService,
-};
+use service::{fanout_service::FanoutService, feed_service::FeedService};
 use workers::fanout_worker::FanoutWorker;
 
 pub struct AppState {

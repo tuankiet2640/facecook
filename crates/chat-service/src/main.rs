@@ -86,10 +86,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Background: subscribe to Redis presence channel and push presence updates
     // to online followers whose connections are in this instance's registry.
-    let presence_sub = PresenceSubscriber::new(
-        Arc::clone(&connections),
-        config.redis.url.clone(),
-    );
+    let presence_sub = PresenceSubscriber::new(Arc::clone(&connections), config.redis.url.clone());
     tokio::spawn(async move {
         loop {
             if let Err(e) = presence_sub.run().await {

@@ -72,11 +72,7 @@ impl AppConfig {
     /// e.g. DATABASE__URL maps to database.url
     pub fn load() -> Result<Self, ConfigError> {
         Config::builder()
-            .add_source(
-                Environment::default()
-                    .separator("__")
-                    .try_parsing(true),
-            )
+            .add_source(Environment::default().separator("__").try_parsing(true))
             .build()?
             .try_deserialize()
     }

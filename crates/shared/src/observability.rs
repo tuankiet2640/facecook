@@ -1,6 +1,4 @@
-use metrics::{
-    describe_counter, describe_gauge, describe_histogram,
-};
+use metrics::{describe_counter, describe_gauge, describe_histogram};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -8,8 +6,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// Production: JSON format for ingestion by Datadog/ELK/CloudWatch.
 /// Development: Pretty format for human readability.
 pub fn init_tracing(service_name: &str, env: &str) {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     if env == "production" {
         tracing_subscriber::registry()
@@ -47,12 +44,18 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
         "http_request_duration_seconds",
         "HTTP request duration in seconds"
     );
-    describe_counter!("feed_fanout_total", "Total feed fanout operations by strategy");
+    describe_counter!(
+        "feed_fanout_total",
+        "Total feed fanout operations by strategy"
+    );
     describe_histogram!(
         "feed_fanout_duration_seconds",
         "Time to complete a feed fanout operation"
     );
-    describe_counter!("messages_sent_total", "Total chat messages submitted by clients");
+    describe_counter!(
+        "messages_sent_total",
+        "Total chat messages submitted by clients"
+    );
     describe_counter!(
         "messages_delivered_total",
         "Total chat messages delivered (websocket or queued)"
@@ -70,8 +73,14 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
         "Total events consumed from Kafka"
     );
     describe_histogram!("db_query_duration_seconds", "Database query execution time");
-    describe_gauge!("feed_cache_hit_ratio", "Ratio of feed reads served from cache");
-    describe_counter!("rate_limit_rejections_total", "Requests rejected by rate limiter");
+    describe_gauge!(
+        "feed_cache_hit_ratio",
+        "Ratio of feed reads served from cache"
+    );
+    describe_counter!(
+        "rate_limit_rejections_total",
+        "Requests rejected by rate limiter"
+    );
 
     Ok(())
 }

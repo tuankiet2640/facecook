@@ -241,11 +241,7 @@ impl UserService {
 
         if let Err(e) = self
             .kafka
-            .publish(
-                &self.notification_topic,
-                &follower_id.to_string(),
-                &event,
-            )
+            .publish(&self.notification_topic, &follower_id.to_string(), &event)
             .await
         {
             warn!(error = %e, "Failed to publish UserFollowed event");
@@ -273,11 +269,7 @@ impl UserService {
 
         if let Err(e) = self
             .kafka
-            .publish(
-                &self.notification_topic,
-                &follower_id.to_string(),
-                &event,
-            )
+            .publish(&self.notification_topic, &follower_id.to_string(), &event)
             .await
         {
             warn!(error = %e, "Failed to publish UserUnfollowed event");
@@ -311,4 +303,3 @@ impl UserService {
 fn user_cache_key(user_id: Uuid) -> String {
     format!("user:profile:{}", user_id)
 }
-

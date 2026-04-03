@@ -1,9 +1,6 @@
 use uuid::Uuid;
 
-use shared::{
-    db::DbPool,
-    errors::AppResult,
-};
+use shared::{db::DbPool, errors::AppResult};
 
 pub struct FeedRepository {
     pool: DbPool,
@@ -16,12 +13,9 @@ impl FeedRepository {
 
     /// Total follower count — used to determine fanout strategy.
     pub async fn get_follower_count(&self, user_id: Uuid) -> AppResult<i64> {
-        let row = sqlx::query!(
-            "SELECT follower_count FROM users WHERE id = $1",
-            user_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = sqlx::query!("SELECT follower_count FROM users WHERE id = $1", user_id)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(row.map(|r| r.follower_count).unwrap_or(0))
     }

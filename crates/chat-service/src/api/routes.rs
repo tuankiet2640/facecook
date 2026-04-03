@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use axum::extract::ws::{Message as WsFrame, WebSocket};
 use axum::{
     extract::{Path, Query, RawQuery, State, WebSocketUpgrade},
     http::{HeaderMap, StatusCode},
@@ -7,7 +8,6 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use axum::extract::ws::{Message as WsFrame, WebSocket};
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
@@ -205,10 +205,7 @@ async fn list_conversations(
 ) -> AppResult<Json<serde_json::Value>> {
     let user_id = extract_user_id(&headers)?;
     let limit = q.limit.unwrap_or(20).min(50);
-    let convs = state
-        .chat_service
-        .get_conversations(user_id, limit)
-        .await?;
+    let convs = state.chat_service.get_conversations(user_id, limit).await?;
     Ok(Json(serde_json::json!({ "data": convs, "limit": limit })))
 }
 

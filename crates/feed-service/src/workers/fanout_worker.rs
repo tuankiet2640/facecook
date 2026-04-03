@@ -82,7 +82,8 @@ impl FanoutWorker {
                             error!(error = %e, "Malformed Kafka message payload (not UTF-8)");
                             // Commit to skip permanently malformed messages
                             let _ = consumer.commit_message(&message, CommitMode::Async);
-                            counter!("kafka_events_consumed_total", "status" => "malformed").increment(1);
+                            counter!("kafka_events_consumed_total", "status" => "malformed")
+                                .increment(1);
                             continue;
                         }
                         None => {
@@ -94,31 +95,27 @@ impl FanoutWorker {
 
                     // Detect event type from header or JSON field
                     let event_type = message
-    .headers()
-    .and_then(|h| {
-        for i in 0..h.count() {
-            if let Some(header) = h.get_at(i) {
-                if header.key == "event_type" {
-                    if let Some(value_bytes) = header.value {
-                        if let Ok(value_str) = std::str::from_utf8(value_bytes) {
-                            return Some(value_str.to_string());
-                        }
-                    }
-                }
-            }
-        }
-        None
-    })
-    .unwrap_or_default();
-
+                        .headers()
+                        .and_then(|h| {
+                            for i in 0..h.count() {
+                                if let Some(header) = h.get_at(i) {
+                                    if header.key == "event_type" {
+                                        if let Some(value_bytes) = header.value {
+                                            if let Ok(value_str) = std::str::from_utf8(value_bytes)
+                                            {
+                                                return Some(value_str.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            None
+                        })
+                        .unwrap_or_default();
 
                     let result = match event_type.as_str() {
-                        "post.created" => {
-                            self.handle_post_created(payload).await
-                        }
-                        "post.deleted" => {
-                            self.handle_post_deleted(payload).await
-                        }
+                        "post.created" => self.handle_post_created(payload).await,
+                        "post.deleted" => self.handle_post_deleted(payload).await,
                         _ => {
                             // Try to deserialize and dispatch based on event_type field in JSON
                             self.handle_unknown_event(payload).await
@@ -131,7 +128,8 @@ impl FanoutWorker {
                             if let Err(e) = consumer.commit_message(&message, CommitMode::Async) {
                                 error!(error = %e, "Failed to commit Kafka offset");
                             }
-                            counter!("kafka_events_consumed_total", "status" => "success").increment(1);
+                            counter!("kafka_events_consumed_total", "status" => "success")
+                                .increment(1);
                         }
                         Err(e) => {
                             error!(
@@ -141,7 +139,8 @@ impl FanoutWorker {
                                 offset = message.offset(),
                                 "Failed to process Kafka message — will retry"
                             );
-                            counter!("kafka_events_consumed_total", "status" => "error").increment(1);
+                            counter!("kafka_events_consumed_total", "status" => "error")
+                                .increment(1);
                             // Do NOT commit — message will be redelivered
                         }
                     }
@@ -192,7 +191,10 @@ impl FanoutWorker {
                 .get("event_type")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
-            warn!(event_type = event_type, "Received unhandled event type in fanout worker");
+            warn!(
+                event_type = event_type,
+                "Received unhandled event type in fanout worker"
+            );
         }
         // Commit to avoid blocking the partition
         Ok(())

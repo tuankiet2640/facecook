@@ -12,7 +12,9 @@ use shared::{
     models::message::{Conversation, Message, MessageType, WsMessage},
 };
 
-use crate::{domain::events::MessageQueued, repository::message_repo::MessageRepository, ConnectionRegistry};
+use crate::{
+    domain::events::MessageQueued, repository::message_repo::MessageRepository, ConnectionRegistry,
+};
 
 /// Redis key for presence state of a single user.
 fn presence_key(user_id: Uuid) -> String {
@@ -146,7 +148,8 @@ impl ChatService {
                     {
                         warn!(error = %e, "Failed to publish message.queued event — push notification may be delayed");
                     } else {
-                        counter!("messages_delivered_total", "method" => "kafka_queued").increment(1);
+                        counter!("messages_delivered_total", "method" => "kafka_queued")
+                            .increment(1);
                     }
                 }
             }
@@ -173,14 +176,15 @@ impl ChatService {
         self.repo.get_or_create_conversation(user_a, user_b).await
     }
 
-    pub async fn get_conversation(
-        &self,
-        conversation_id: Uuid,
-    ) -> AppResult<Option<Conversation>> {
+    pub async fn get_conversation(&self, conversation_id: Uuid) -> AppResult<Option<Conversation>> {
         self.repo.get_conversation(conversation_id).await
     }
 
-    pub async fn get_conversations(&self, user_id: Uuid, limit: i64) -> AppResult<Vec<Conversation>> {
+    pub async fn get_conversations(
+        &self,
+        user_id: Uuid,
+        limit: i64,
+    ) -> AppResult<Vec<Conversation>> {
         self.repo.get_user_conversations(user_id, limit).await
     }
 
@@ -190,7 +194,9 @@ impl ChatService {
         before_sequence: Option<i64>,
         limit: i64,
     ) -> AppResult<Vec<Message>> {
-        self.repo.get_messages(conversation_id, before_sequence, limit).await
+        self.repo
+            .get_messages(conversation_id, before_sequence, limit)
+            .await
     }
 
     // ── Presence ─────────────────────────────────────────────────────────────
@@ -203,9 +209,7 @@ impl ChatService {
             last_seen: Utc::now(),
         };
         // TTL = 60s — heartbeat must refresh before expiry for continuous online status.
-        self.cache
-            .set(&presence_key(user_id), &event, 60)
-            .await?;
+        self.cache.set(&presence_key(user_id), &event, 60).await?;
         let payload = serde_json::to_string(&event)
             .map_err(|e| shared::errors::AppError::Cache(e.to_string()))?;
         self.cache.publish(PRESENCE_CHANNEL, &payload).await?;
@@ -219,9 +223,7 @@ impl ChatService {
             online: false,
             last_seen: Utc::now(),
         };
-        self.cache
-            .set(&presence_key(user_id), &event, 3600)
-            .await?;
+        self.cache.set(&presence_key(user_id), &event, 3600).await?;
         let payload = serde_json::to_string(&event)
             .map_err(|e| shared::errors::AppError::Cache(e.to_string()))?;
         self.cache.publish(PRESENCE_CHANNEL, &payload).await?;

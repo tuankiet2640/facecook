@@ -27,7 +27,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/users/me", get(get_me).put(update_profile))
         .route("/api/v1/users/:user_id", get(get_user))
-        .route("/api/v1/users/username/:username", get(get_user_by_username))
+        .route(
+            "/api/v1/users/username/:username",
+            get(get_user_by_username),
+        )
         .route("/api/v1/users/:user_id/follow", post(follow_user))
         .route("/api/v1/users/:user_id/unfollow", delete(unfollow_user))
         .route("/api/v1/users/:user_id/followers", get(get_followers))
@@ -63,10 +66,7 @@ async fn login(
     req.validate()
         .map_err(|e| AppError::Validation(e.to_string()))?;
 
-    let resp = state
-        .user_service
-        .login(req, &state.jwt_service)
-        .await?;
+    let resp = state.user_service.login(req, &state.jwt_service).await?;
 
     Ok(Json(serde_json::json!({
         "access_token": resp.access_token,
@@ -157,7 +157,9 @@ async fn get_followers(
         .user_service
         .get_followers(user_id, limit, offset)
         .await?;
-    Ok(Json(serde_json::json!({ "data": followers, "limit": limit, "offset": offset })))
+    Ok(Json(
+        serde_json::json!({ "data": followers, "limit": limit, "offset": offset }),
+    ))
 }
 
 async fn get_following(
@@ -171,7 +173,9 @@ async fn get_following(
         .user_service
         .get_following(user_id, limit, offset)
         .await?;
-    Ok(Json(serde_json::json!({ "data": following, "limit": limit, "offset": offset })))
+    Ok(Json(
+        serde_json::json!({ "data": following, "limit": limit, "offset": offset }),
+    ))
 }
 
 /// Extract authenticated user ID from X-User-Id header (set by gateway).

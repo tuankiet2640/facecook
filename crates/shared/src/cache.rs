@@ -45,7 +45,12 @@ impl CacheClient {
         }
     }
 
-    pub async fn set<T: Serialize>(&self, key: &str, value: &T, ttl_secs: u64) -> Result<(), AppError> {
+    pub async fn set<T: Serialize>(
+        &self,
+        key: &str,
+        value: &T,
+        ttl_secs: u64,
+    ) -> Result<(), AppError> {
         let mut conn = self
             .pool
             .get()
