@@ -1,0 +1,108 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO posts (author_id, content, media_urls, tags, visibility)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id, author_id, content, media_urls, tags,\n                      like_count, comment_count, share_count,\n                      visibility AS \"visibility: PostVisibility\",\n                      created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "author_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "media_urls",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "tags",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 5,
+        "name": "like_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "comment_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "share_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "visibility: PostVisibility",
+        "type_info": {
+          "Custom": {
+            "name": "post_visibility",
+            "kind": {
+              "Enum": [
+                "public",
+                "friends",
+                "private"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Jsonb",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "post_visibility",
+            "kind": {
+              "Enum": [
+                "public",
+                "friends",
+                "private"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5691cde4d59aba0f2d99e934e7db629d7c3c15c1e1b869e85ea5c3663d6d0889"
+}

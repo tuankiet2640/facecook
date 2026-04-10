@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE messages\n            SET delivered_at = NOW()\n            WHERE id = $1 AND delivered_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "444448f87205e5837209e37f049e63fcf3e1664e58e0dcb6647c7d6640a540a6"
+}

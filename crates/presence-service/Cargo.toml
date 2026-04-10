@@ -27,3 +27,4 @@ chrono = { workspace = true }
 deadpool-redis = { workspace = true }
 redis = { workspace = true }
 futures = { workspace = true }
+dotenvy = { workspace = true }

@@ -31,6 +31,9 @@ Thumbs.db
 debug/
 release/
 
+# Runtime upload storage (served at /uploads, not committed)
+uploads/
+
 # UI (Node / Vite)
 ui/node_modules/
 ui/dist/

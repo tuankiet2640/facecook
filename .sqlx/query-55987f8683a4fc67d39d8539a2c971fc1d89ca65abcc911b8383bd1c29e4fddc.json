@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO conversations (participant_a, participant_b)\n            VALUES ($1, $2)\n            ON CONFLICT ON CONSTRAINT conversations_participants_unique\n            DO UPDATE SET id = conversations.id\n            RETURNING id, participant_a, participant_b, last_message_id, last_message_at, created_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "participant_a",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "participant_b",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_message_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_message_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "55987f8683a4fc67d39d8539a2c971fc1d89ca65abcc911b8383bd1c29e4fddc"
+}
