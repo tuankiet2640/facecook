@@ -19,6 +19,7 @@ use crate::{
 };
 
 const POST_CACHE_TTL: u64 = 3600; // 1 hour
+const MAX_FEED_SIZE: isize = 1000; // Must match feed-service FEED__MAX_FEED_SIZE
 
 pub struct PostService {
     repo: Arc<PostRepository>,
@@ -63,7 +64,7 @@ impl PostService {
 
         let post = self
             .repo
-            .create(author_id, &req.content, &media_urls, &visibility)
+            .create(author_id, &req.content, &media_urls, &req.tags, &visibility)
             .await?;
 
         // Cache immediately for fast reads by the author and others
@@ -76,6 +77,24 @@ impl PostService {
         // Using post_id as Kafka key ensures same-post events go to same partition
         // (important for ordering guarantees within a post's lifecycle)
         let timestamp_ms = post.created_at.timestamp_millis();
+
+        // Eagerly push the post into the author's own feed sorted set so the author
+        // sees their post immediately without waiting for the async Kafka fanout.
+        // Uses the same key format as the feed-service: "feed:{user_id}".
+        let author_feed_key = format!("feed:{}", author_id);
+        if let Err(e) = self
+            .cache
+            .zadd(&author_feed_key, timestamp_ms as f64, &post.id.to_string())
+            .await
+        {
+            warn!(error = %e, post_id = %post.id, "Failed to add post to author feed sorted set");
+        } else {
+            // Trim to keep at most MAX_FEED_SIZE entries
+            let _ = self
+                .cache
+                .zremrangebyrank(&author_feed_key, 0, -(MAX_FEED_SIZE + 1))
+                .await;
+        }
         let event = KafkaEvent::new(
             "post.created",
             PostCreated {

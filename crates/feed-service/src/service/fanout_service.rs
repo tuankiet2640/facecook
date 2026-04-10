@@ -80,6 +80,15 @@ impl FanoutService {
             counter!("feed_fanout_total", "strategy" => "read").increment(1);
         }
 
+        // Always add the post to the author's own feed so they see their own posts.
+        let author_feed_key = feed_sorted_set_key(author_id);
+        self.cache
+            .zadd(&author_feed_key, timestamp_score, &post_id.to_string())
+            .await?;
+        self.cache
+            .zremrangebyrank(&author_feed_key, 0, -(self.config.max_feed_size as isize + 1))
+            .await?;
+
         metrics::histogram!("feed_fanout_duration_seconds")
             .record(start.elapsed().as_secs_f64());
 

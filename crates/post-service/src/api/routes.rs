@@ -22,8 +22,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/posts", post(create_post))
+        .route("/api/v1/posts/batch", get(get_posts_batch))
         .route("/api/v1/posts/:post_id", get(get_post).delete(delete_post))
-        .route("/api/v1/posts/batch", post(get_posts_batch))
         .route("/api/v1/users/:user_id/posts", get(get_user_posts))
         .with_state(state)
 }
@@ -59,20 +59,26 @@ async fn delete_post(
 }
 
 #[derive(Deserialize)]
-struct BatchRequest {
-    post_ids: Vec<Uuid>,
+struct BatchQuery {
+    ids: String, // comma-separated UUIDs
 }
 
 async fn get_posts_batch(
     State(state): State<Arc<AppState>>,
-    Json(req): Json<BatchRequest>,
+    Query(q): Query<BatchQuery>,
 ) -> AppResult<Json<serde_json::Value>> {
-    if req.post_ids.len() > 100 {
+    let post_ids: Vec<Uuid> = q.ids
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| Uuid::parse_str(s.trim()).ok())
+        .collect();
+
+    if post_ids.len() > 100 {
         return Err(AppError::BadRequest(
             "Maximum 100 post IDs per batch request".to_string(),
         ));
     }
-    let posts = state.post_service.get_posts_by_ids(req.post_ids).await?;
+    let posts = state.post_service.get_posts_by_ids(post_ids).await?;
     Ok(Json(serde_json::json!({ "data": posts })))
 }
 

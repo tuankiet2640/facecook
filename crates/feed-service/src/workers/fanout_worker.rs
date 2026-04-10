@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use metrics::counter;
-use rdkafka::{consumer::CommitMode, consumer::Consumer, message::Message};
+use rdkafka::{consumer::CommitMode, consumer::Consumer, message::Headers, message::Message};
 use tracing::{error, info, warn};
 
 use shared::{
