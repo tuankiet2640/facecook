@@ -52,7 +52,7 @@ impl KafkaProducer {
             .set("max.in.flight.requests.per.connection", "5")
             .set("retries", "10")
             .set("retry.backoff.ms", "100")
-            .set("compression.type", "snappy")
+            .set("compression.type", "lz4")
             // Batching for throughput: wait up to 5ms to fill a 64KB batch
             .set("batch.size", "65536")
             .set("linger.ms", "5")

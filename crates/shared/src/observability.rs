@@ -35,11 +35,17 @@ pub fn init_tracing(service_name: &str, env: &str) {
     );
 }
 
-/// Install Prometheus metrics exporter on :9090/metrics.
-/// Pre-register all metrics with descriptions for Grafana auto-discovery.
+/// Install Prometheus metrics exporter.
+/// Port is read from METRICS_PORT env var; defaults to 0 (OS-assigned) for local dev,
+/// allowing multiple services to run on the same host without port conflicts.
+/// In Docker each service has METRICS_PORT=9090 set in docker-compose.
 pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
+    let port: u16 = std::env::var("METRICS_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(0);
     PrometheusBuilder::new()
-        .with_http_listener(([0, 0, 0, 0], 9090))
+        .with_http_listener(([0, 0, 0, 0], port))
         .install()?;
 
     describe_counter!("http_requests_total", "Total HTTP requests processed");
