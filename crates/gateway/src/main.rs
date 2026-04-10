@@ -12,6 +12,7 @@ use shared::{
 
 mod middleware;
 mod router;
+mod upload;
 
 pub struct GatewayState {
     pub jwt_service: Arc<JwtService>,

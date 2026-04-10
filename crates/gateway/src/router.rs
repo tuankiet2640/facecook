@@ -3,13 +3,14 @@ use std::time::Duration;
 
 use axum::{
     body::Body,
-    extract::{Request, State},
+    extract::{OriginalUri, Request, State},
     http::{HeaderName, HeaderValue, StatusCode},
     middleware as axum_middleware,
     response::Response,
-    routing::{any, get},
+    routing::{any, get, post},
     Router,
 };
+use tower_http::services::ServeDir;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
@@ -21,16 +22,27 @@ use shared::observability::health_check;
 
 use crate::{
     middleware::auth::auth_middleware,
+    upload::{upload_media, uploads_dir},
     GatewayState,
 };
 
-/// Upstream service base URLs.
-/// In production these come from service discovery / env vars.
-const USER_SERVICE_URL: &str = "http://user-service:8081";
-const POST_SERVICE_URL: &str = "http://post-service:8083";
-const FEED_SERVICE_URL: &str = "http://feed-service:8082";
-const CHAT_SERVICE_URL: &str = "http://chat-service:8084";
-const PRESENCE_SERVICE_URL: &str = "http://presence-service:8085";
+/// Upstream service base URLs — overridable via env vars for local dev.
+/// Defaults are the Docker Compose service names; set to localhost:PORT locally.
+fn user_service_url() -> String {
+    std::env::var("USER_SERVICE_URL").unwrap_or_else(|_| "http://user-service:8081".to_string())
+}
+fn post_service_url() -> String {
+    std::env::var("POST_SERVICE_URL").unwrap_or_else(|_| "http://post-service:8083".to_string())
+}
+fn feed_service_url() -> String {
+    std::env::var("FEED_SERVICE_URL").unwrap_or_else(|_| "http://feed-service:8082".to_string())
+}
+fn chat_service_url() -> String {
+    std::env::var("CHAT_SERVICE_URL").unwrap_or_else(|_| "http://chat-service:8084".to_string())
+}
+fn presence_service_url() -> String {
+    std::env::var("PRESENCE_SERVICE_URL").unwrap_or_else(|_| "http://presence-service:8085".to_string())
+}
 
 pub fn build_router(state: Arc<GatewayState>) -> Router {
     let timeout_secs = state.config.server.request_timeout_secs;
@@ -41,9 +53,14 @@ pub fn build_router(state: Arc<GatewayState>) -> Router {
         .allow_headers(Any)
         .max_age(Duration::from_secs(86400));
 
+    // Ensure uploads directory exists at startup
+    std::fs::create_dir_all(uploads_dir()).ok();
+
     Router::new()
         .route("/health", get(health_check))
         .nest("/api/v1", api_routes(state.clone()))
+        // Serve uploaded media files — no auth required (URLs are unguessable UUIDs)
+        .nest_service("/uploads", ServeDir::new(uploads_dir()))
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
@@ -56,9 +73,14 @@ fn api_routes(state: Arc<GatewayState>) -> Router<Arc<GatewayState>> {
         // Public — auth middleware exempts these paths
         .route("/auth/register", any(proxy_user_service))
         .route("/auth/login", any(proxy_user_service))
+        // Protected upload endpoint (requires JWT)
+        .route("/upload", post(upload_media))
         // Protected
         .route("/users/*path", any(proxy_user_service))
+        // Base routes (no trailing path segment) + wildcard sub-paths
+        .route("/posts", any(proxy_post_service))
         .route("/posts/*path", any(proxy_post_service))
+        .route("/feed", any(proxy_feed_service))
         .route("/feed/*path", any(proxy_feed_service))
         // Chat WebSocket: clients connect directly to chat-service on its port.
         // The gateway proxies REST endpoints only; WS upgrade is not proxied
@@ -77,35 +99,35 @@ async fn proxy_user_service(
     State(state): State<Arc<GatewayState>>,
     req: Request,
 ) -> Response {
-    proxy_request(&state.http_client, req, USER_SERVICE_URL).await
+    proxy_request(&state.http_client, req, &user_service_url()).await
 }
 
 async fn proxy_post_service(
     State(state): State<Arc<GatewayState>>,
     req: Request,
 ) -> Response {
-    proxy_request(&state.http_client, req, POST_SERVICE_URL).await
+    proxy_request(&state.http_client, req, &post_service_url()).await
 }
 
 async fn proxy_feed_service(
     State(state): State<Arc<GatewayState>>,
     req: Request,
 ) -> Response {
-    proxy_request(&state.http_client, req, FEED_SERVICE_URL).await
+    proxy_request(&state.http_client, req, &feed_service_url()).await
 }
 
 async fn proxy_chat_service(
     State(state): State<Arc<GatewayState>>,
     req: Request,
 ) -> Response {
-    proxy_request(&state.http_client, req, CHAT_SERVICE_URL).await
+    proxy_request(&state.http_client, req, &chat_service_url()).await
 }
 
 async fn proxy_presence_service(
     State(state): State<Arc<GatewayState>>,
     req: Request,
 ) -> Response {
-    proxy_request(&state.http_client, req, PRESENCE_SERVICE_URL).await
+    proxy_request(&state.http_client, req, &presence_service_url()).await
 }
 
 // ── Core proxy logic ───────────────────────────────────────────────────────────
@@ -120,14 +142,20 @@ async fn proxy_presence_service(
 /// This function strips the `Authorization` header before forwarding — downstream
 /// services must not re-validate the JWT (they trust the gateway's injected headers).
 async fn proxy_request(client: &reqwest::Client, req: Request, upstream: &str) -> Response {
-    // Reconstruct the upstream URL preserving path and query string.
+    // axum's nest() strips the path prefix from req.uri(), so use OriginalUri
+    // (set by axum in request extensions) to get the full path including /api/v1.
     let path_and_query = req
-        .uri()
-        .path_and_query()
-        .map(|pq| pq.as_str())
-        .unwrap_or("/");
+        .extensions()
+        .get::<OriginalUri>()
+        .and_then(|u| u.path_and_query().map(|pq| pq.as_str().to_owned()))
+        .unwrap_or_else(|| {
+            req.uri()
+                .path_and_query()
+                .map(|pq| pq.as_str().to_owned())
+                .unwrap_or_else(|| "/".to_owned())
+        });
 
-    let url = format!("{}{}", upstream, path_and_query);
+    let url = format!("{}{}", upstream, &path_and_query);
 
     let method = req.method().clone();
     let headers = req.headers().clone();

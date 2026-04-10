@@ -64,8 +64,15 @@ pub async fn auth_middleware(
 }
 
 fn is_public_path(path: &str) -> bool {
+    // The middleware runs inside the nested /api/v1 router, so the path seen
+    // here is already stripped of that prefix (e.g. "/auth/register", not
+    // "/api/v1/auth/register"). Match both forms to be safe across Axum versions.
     matches!(
         path,
-        "/health" | "/api/v1/auth/register" | "/api/v1/auth/login"
+        "/health"
+            | "/auth/register"
+            | "/auth/login"
+            | "/api/v1/auth/register"
+            | "/api/v1/auth/login"
     )
 }
