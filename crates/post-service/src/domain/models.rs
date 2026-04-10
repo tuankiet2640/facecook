@@ -7,8 +7,11 @@ use shared::models::post::PostVisibility;
 pub struct CreatePostRequest {
     #[validate(length(min = 1, max = 5000, message = "Content must be 1–5000 characters"))]
     pub content: String,
+    #[serde(default)]
     #[validate(length(max = 10, message = "Maximum 10 media attachments"))]
     pub media_urls: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub visibility: Option<PostVisibility>,
 }
 

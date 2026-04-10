@@ -8,6 +8,7 @@ pub struct Post {
     pub author_id: Uuid,
     pub content: String,
     pub media_urls: serde_json::Value, // JSONB array of URLs
+    pub tags: Vec<String>,
     pub like_count: i64,
     pub comment_count: i64,
     pub share_count: i64,

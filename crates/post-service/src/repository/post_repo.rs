@@ -20,14 +20,15 @@ impl PostRepository {
         author_id: Uuid,
         content: &str,
         media_urls: &serde_json::Value,
+        tags: &[String],
         visibility: &PostVisibility,
     ) -> AppResult<Post> {
         let post = sqlx::query_as!(
             Post,
             r#"
-            INSERT INTO posts (author_id, content, media_urls, visibility)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, author_id, content, media_urls,
+            INSERT INTO posts (author_id, content, media_urls, tags, visibility)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, author_id, content, media_urls, tags,
                       like_count, comment_count, share_count,
                       visibility AS "visibility: PostVisibility",
                       created_at, updated_at
@@ -35,6 +36,7 @@ impl PostRepository {
             author_id,
             content,
             media_urls,
+            tags,
             visibility as &PostVisibility,
         )
         .fetch_one(&self.pool)
@@ -56,7 +58,7 @@ impl PostRepository {
             Post,
             r#"
             SELECT id, author_id, content, media_urls,
-                   like_count, comment_count, share_count,
+                   tags, like_count, comment_count, share_count,
                    visibility AS "visibility: PostVisibility",
                    created_at, updated_at
             FROM posts
@@ -80,7 +82,7 @@ impl PostRepository {
             sqlx::query_as!(
                 Post,
                 r#"
-                SELECT id, author_id, content, media_urls,
+                SELECT id, author_id, content, media_urls, tags,
                        like_count, comment_count, share_count,
                        visibility AS "visibility: PostVisibility",
                        created_at, updated_at
@@ -100,7 +102,7 @@ impl PostRepository {
             sqlx::query_as!(
                 Post,
                 r#"
-                SELECT id, author_id, content, media_urls,
+                SELECT id, author_id, content, media_urls, tags,
                        like_count, comment_count, share_count,
                        visibility AS "visibility: PostVisibility",
                        created_at, updated_at
@@ -124,7 +126,7 @@ impl PostRepository {
             Post,
             r#"
             SELECT id, author_id, content, media_urls,
-                   like_count, comment_count, share_count,
+                   tags, like_count, comment_count, share_count,
                    visibility AS "visibility: PostVisibility",
                    created_at, updated_at
             FROM posts
