@@ -136,7 +136,7 @@ pub fn create_consumer(
         .set("heartbeat.interval.ms", "3000")
         .set("max.poll.interval.ms", "300000")
         .set("fetch.min.bytes", "1024")
-        .set("fetch.max.wait.ms", "500")
+        .set("fetch.wait.max.ms", "500")
         .create()
         .map_err(|e| AppError::Queue(e.to_string()))?;
 

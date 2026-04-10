@@ -169,21 +169,8 @@ impl UserRepository {
         .execute(&mut *tx)
         .await?;
 
-        // Increment following_count for follower
-        sqlx::query!(
-            "UPDATE users SET following_count = following_count + 1 WHERE id = $1",
-            follower_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        // Increment follower_count for followee
-        sqlx::query!(
-            "UPDATE users SET follower_count = follower_count + 1 WHERE id = $1",
-            followee_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        // follower_count / following_count are maintained by the follows_update_counts
+        // trigger in 003_create_follows.sql — no manual UPDATE needed here.
 
         tx.commit().await?;
         Ok(())
@@ -205,19 +192,7 @@ impl UserRepository {
             return Err(AppError::NotFound("Follow relationship not found".to_string()));
         }
 
-        sqlx::query!(
-            "UPDATE users SET following_count = GREATEST(following_count - 1, 0) WHERE id = $1",
-            follower_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            "UPDATE users SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = $1",
-            followee_id
-        )
-        .execute(&mut *tx)
-        .await?;
+        // follower_count / following_count decremented by the follows_update_counts trigger.
 
         tx.commit().await?;
         Ok(())

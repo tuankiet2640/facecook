@@ -207,7 +207,7 @@ impl FanoutService {
         let feed_key = feed_sorted_set_key(user_id);
         let fetch_count = (limit * 3) as isize; // fetch 3x to account for merging + filtering
 
-        // 1. Get personal feed
+        // 1. Get personal feed from Redis
         let personal_raw: Vec<(String, f64)> = self
             .cache
             .zrevrange_with_scores(&feed_key, 0, fetch_count)
@@ -221,6 +221,26 @@ impl FanoutService {
                     .map(|post_id| FeedItem { post_id, score })
             })
             .collect();
+
+        // DB fallback: if the personal Redis feed is empty, query the posts table
+        // directly for recent posts from followed users. This covers:
+        // - Users who just followed someone (no fanout yet)
+        // - Historical posts that were never fanned out (e.g., before fix was deployed)
+        // Backfill the sorted set so subsequent reads hit Redis.
+        if all_items.is_empty() {
+            let db_posts = self
+                .feed_repo
+                .get_recent_posts_from_followed_users(user_id, fetch_count as i64)
+                .await
+                .unwrap_or_default();
+
+            for (post_id, ts_ms) in db_posts {
+                let score = ts_ms as f64;
+                // Backfill Redis so future reads are fast
+                let _ = self.cache.zadd(&feed_key, score, &post_id.to_string()).await;
+                all_items.push(FeedItem { post_id, score });
+            }
+        }
 
         // 2. Get celebrity followees
         let celebrity_ids = self

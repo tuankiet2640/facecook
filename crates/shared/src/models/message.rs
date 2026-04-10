@@ -20,6 +20,7 @@ pub struct Message {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "message_type", rename_all = "lowercase")]
 pub enum MessageType {
     Text,

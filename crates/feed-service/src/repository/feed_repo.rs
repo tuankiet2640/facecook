@@ -99,6 +99,35 @@ impl FeedRepository {
         Ok(())
     }
 
+    /// Recent posts by all users that `user_id` follows, ordered newest first.
+    /// Used as a DB fallback when the Redis feed sorted set is empty.
+    pub async fn get_recent_posts_from_followed_users(
+        &self,
+        user_id: Uuid,
+        limit: i64,
+    ) -> AppResult<Vec<(Uuid, i64)>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT p.id AS "post_id: Uuid",
+                   (EXTRACT(EPOCH FROM p.created_at) * 1000)::bigint AS "timestamp_ms!"
+            FROM posts p
+            JOIN follows f ON f.followee_id = p.author_id
+            WHERE f.follower_id = $1
+            ORDER BY p.created_at DESC
+            LIMIT $2
+            "#,
+            user_id,
+            limit,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.post_id, r.timestamp_ms))
+            .collect())
+    }
+
     /// Fetch celebrity posts from DB when Redis cache is cold.
     pub async fn get_celebrity_posts_since(
         &self,
