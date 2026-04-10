@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
   },
   server: {
     port: 5173,
+    host: "0.0.0.0",  // bind all interfaces so Cloudflare tunnel can reach it
     allowedHosts,
     proxy: {
       // All /api requests go to the gateway — avoids CORS in dev.
