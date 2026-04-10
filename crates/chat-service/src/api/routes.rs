@@ -150,8 +150,12 @@ async fn dispatch_ws_message(msg: WsMessage, user_id: Uuid, state: &Arc<AppState
                 .await
             {
                 Ok((message, seq)) => {
-                    // Echo delivery confirmation back to sender.
+                    // Echo the persisted message back to the sender so it appears
+                    // in their UI immediately, then send Delivered for pending cleanup.
                     if let Some(tx) = state.connections.get(&user_id) {
+                        let _ = tx.send(WsMessage::NewMessage {
+                            message: message.clone(),
+                        });
                         let _ = tx.send(WsMessage::Delivered {
                             message_id: message.id,
                             sequence_number: seq,
