@@ -27,7 +27,13 @@ pub async fn create_pool(config: &DatabaseConfig) -> Result<DbPool, AppError> {
                 .parse::<sqlx::postgres::PgConnectOptions>()
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("Invalid database URL: {}", e)))?
                 .log_statements(LevelFilter::Debug)
-                .log_slow_statements(LevelFilter::Warn, Duration::from_secs(1)),
+                .log_slow_statements(LevelFilter::Warn, Duration::from_secs(1))
+                // PgBouncer transaction mode (Supabase pooler port 6543) does not
+                // support named prepared statements across transactions. Setting
+                // capacity=0 makes sqlx use unnamed prepared statements (Parse with
+                // empty name), which are scoped to the current query cycle and are
+                // safe to use with PgBouncer in transaction mode.
+                .statement_cache_capacity(0),
         )
         .await
         .map_err(|e| AppError::Database(e))?;
