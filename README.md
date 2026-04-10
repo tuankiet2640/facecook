@@ -1,7 +1,6 @@
 # Facecook
 
-A production-grade distributed backend combining a **news feed** (à la Twitter/Facebook) and **real-time chat** (à la Messenger/WhatsApp). Built in Rust as a demonstration of distributed system
-```
+A production-grade distributed backend combining a **news feed** (à la Twitter/Facebook) and **real-time chat** (à la Messenger/WhatsApp). Built in Rust as a demonstration of distributed systems design patterns at scale.
 
 ---
 
