@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { postsApi } from "@/lib/api";
+import { postsApi, mediaApi } from "@/lib/api";
 import { useFeed } from "@/hooks/useFeed";
 import { PostCard } from "@/components/feed/PostCard";
 import { cn } from "@/lib/utils";
@@ -44,16 +44,56 @@ export function FeedPage() {
 
 // ── Create post ───────────────────────────────────────────────────────────────
 
+type MediaPreview = { file: File; objectUrl: string; uploaded?: string };
+
 function CreatePostForm({ onCreated }: { onCreated: (p: import("@/types/api").Post) => void }) {
   const [content, setContent] = useState("");
   const [focused, setFocused] = useState(false);
+  const [media, setMedia] = useState<MediaPreview[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => postsApi.create({ content }),
-    onSuccess: (post) => { setContent(""); setFocused(false); onCreated(post); },
+    mutationFn: async () => {
+      // Upload any files that haven't been uploaded yet
+      const urls: string[] = [];
+      for (const m of media) {
+        if (m.uploaded) {
+          urls.push(m.uploaded);
+        } else {
+          const url = await mediaApi.upload(m.file);
+          urls.push(url);
+        }
+      }
+      return postsApi.create({ content, media_urls: urls });
+    },
+    onSuccess: (post) => {
+      setContent("");
+      setFocused(false);
+      media.forEach((m) => URL.revokeObjectURL(m.objectUrl));
+      setMedia([]);
+      onCreated(post);
+    },
   });
 
-  const canSubmit = content.trim().length > 0 && !isPending;
+  function pickFiles(files: FileList | null) {
+    if (!files) return;
+    const next: MediaPreview[] = Array.from(files)
+      .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
+      .slice(0, 4 - media.length) // max 4 attachments
+      .map((file) => ({ file, objectUrl: URL.createObjectURL(file) }));
+    setMedia((prev) => [...prev, ...next]);
+    setFocused(true);
+  }
+
+  function removeMedia(idx: number) {
+    setMedia((prev) => {
+      URL.revokeObjectURL(prev[idx].objectUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  }
+
+  const canSubmit = (content.trim().length > 0 || media.length > 0) && !isPending && !uploading;
 
   return (
     <div className={cn(
@@ -64,20 +104,66 @@ function CreatePostForm({ onCreated }: { onCreated: (p: import("@/types/api").Po
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onFocus={() => setFocused(true)}
-        onBlur={() => !content && setFocused(false)}
+        onBlur={() => !content && media.length === 0 && setFocused(false)}
         placeholder="What's on your mind?"
         rows={focused ? 3 : 1}
         className="w-full bg-transparent text-text-primary placeholder:text-text-muted text-sm resize-none focus:outline-none transition-all"
       />
+
+      {/* Media previews */}
+      {media.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {media.map((m, i) => (
+            <div key={m.objectUrl} className="relative rounded-lg overflow-hidden bg-surface-overlay aspect-video">
+              {m.file.type.startsWith("video/") ? (
+                <video src={m.objectUrl} className="w-full h-full object-cover" muted />
+              ) : (
+                <img src={m.objectUrl} alt="" className="w-full h-full object-cover" />
+              )}
+              <button
+                onClick={() => removeMedia(i)}
+                className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-black/80"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {focused && (
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={() => mutate()}
-            disabled={!canSubmit}
-            className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
-          >
-            {isPending ? "Posting…" : "Post"}
-          </button>
+        <div className="flex items-center gap-2 mt-3">
+          {/* Media picker */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            className="hidden"
+            onChange={(e) => pickFiles(e.target.files)}
+          />
+          {media.length < 4 && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="text-text-muted hover:text-accent transition-colors p-1"
+              title="Attach image or video"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </button>
+          )}
+          <div className="ml-auto">
+            <button
+              onClick={() => mutate()}
+              disabled={!canSubmit}
+              className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+            >
+              {isPending || uploading ? "Posting…" : "Post"}
+            </button>
+          </div>
         </div>
       )}
     </div>

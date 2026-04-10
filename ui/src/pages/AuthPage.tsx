@@ -50,22 +50,23 @@ export function AuthPage() {
 // ── Login ─────────────────────────────────────────────────────────────────────
 
 function LoginForm({ onSuccess }: { onSuccess: (token: string, userId: string) => void }) {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: () => authApi.login({ username, password }),
+    mutationFn: () => authApi.login({ email, password }),
     onSuccess: (data) => onSuccess(data.access_token, data.user_id),
   });
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutate(); }} className="space-y-4">
-      <Field label="Username">
+      <Field label="Email">
         <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="alice"
-          autoComplete="username"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="alice@example.com"
+          autoComplete="email"
           required
           className={inputCls}
         />

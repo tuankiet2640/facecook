@@ -37,7 +37,7 @@ export const authApi = {
   register: (data: { username: string; email: string; password: string; display_name?: string }) =>
     apiClient.post<AuthResponse>("/auth/register", data).then((r) => r.data),
 
-  login: (data: { username: string; password: string }) =>
+  login: (data: { email: string; password: string }) =>
     apiClient.post<AuthResponse>("/auth/login", data).then((r) => r.data),
 };
 
@@ -87,6 +87,19 @@ export const postsApi = {
 
   delete: (postId: string) =>
     apiClient.delete(`/posts/${postId}`).then((r) => r.data),
+};
+
+// ── Media upload ──────────────────────────────────────────────────────────────
+
+export const mediaApi = {
+  upload: async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await apiClient.post<{ url: string }>("/upload", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.url;
+  },
 };
 
 // ── Feed ──────────────────────────────────────────────────────────────────────

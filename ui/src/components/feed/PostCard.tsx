@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { usersApi } from "@/lib/api";
 import { qk } from "@/lib/queryKeys";
-import { timeAgo, initials, hashColor } from "@/lib/utils";
+import { timeAgo, initials, hashColor, cn } from "@/lib/utils";
 import type { Post } from "@/types/api";
 
 export function PostCard({ post }: { post: Post }) {
@@ -51,6 +51,34 @@ export function PostCard({ post }: { post: Post }) {
       <p className="text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed">
         {post.content}
       </p>
+
+      {/* Media */}
+      {Array.isArray(post.media_urls) && post.media_urls.length > 0 && (
+        <div className={cn(
+          "grid gap-1 rounded-lg overflow-hidden",
+          post.media_urls.length === 1 ? "grid-cols-1" : "grid-cols-2",
+        )}>
+          {(post.media_urls as string[]).map((url) => {
+            const isVideo = /\.(mp4|webm|mov)$/i.test(url);
+            return isVideo ? (
+              <video
+                key={url}
+                src={url}
+                controls
+                className="w-full max-h-80 object-cover bg-black"
+              />
+            ) : (
+              <img
+                key={url}
+                src={url}
+                alt=""
+                className="w-full max-h-80 object-cover"
+                loading="lazy"
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Tags */}
       {post.tags.length > 0 && (
