@@ -68,6 +68,10 @@ export const usersApi = {
       `/users/${userId}/following`,
       { params: { limit, offset } },
     ).then((r) => r.data),
+
+  search: (q: string, limit = 10) =>
+    apiClient.get<{ data: User[] }>("/users/search", { params: { q, limit } })
+      .then((r) => r.data.data),
 };
 
 // ── Posts ─────────────────────────────────────────────────────────────────────

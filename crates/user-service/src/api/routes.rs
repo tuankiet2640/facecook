@@ -26,6 +26,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/v1/auth/register", post(register))
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/users/me", get(get_me).put(update_profile))
+        .route("/api/v1/users/search", get(search_users))
         .route("/api/v1/users/:user_id", get(get_user))
         .route("/api/v1/users/username/:username", get(get_user_by_username))
         .route("/api/v1/users/:user_id/follow", post(follow_user))
@@ -104,6 +105,28 @@ async fn get_user(
 ) -> AppResult<Json<serde_json::Value>> {
     let profile = state.user_service.get_profile(user_id).await?;
     Ok(Json(serde_json::to_value(profile).unwrap()))
+}
+
+#[derive(Deserialize)]
+struct SearchQuery {
+    q: String,
+    limit: Option<i64>,
+}
+
+async fn search_users(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SearchQuery>,
+) -> AppResult<Json<serde_json::Value>> {
+    // Trim + bound the query: reject empty and cap to prevent LIKE on single
+    // characters scanning the whole table. pg_trgm needs >= 3 chars to use
+    // the index effectively, but we allow 2 for responsive as-you-type.
+    let q = params.q.trim();
+    if q.len() < 2 {
+        return Ok(Json(serde_json::json!({ "data": [] })));
+    }
+    let limit = params.limit.unwrap_or(10).clamp(1, 50);
+    let users = state.user_service.search_users(q, limit).await?;
+    Ok(Json(serde_json::json!({ "data": users })))
 }
 
 async fn get_user_by_username(

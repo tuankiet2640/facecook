@@ -145,6 +145,9 @@ function CreatePostForm({ onCreated }: { onCreated: (p: import("@/types/api").Po
           {media.length < 4 && (
             <button
               type="button"
+              // preventDefault on mousedown keeps focus on the textarea so its
+              // onBlur doesn't collapse the form before our click handler runs.
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => fileRef.current?.click()}
               className="text-text-muted hover:text-accent transition-colors p-1"
               title="Attach image or video"

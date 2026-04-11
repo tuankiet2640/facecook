@@ -35,6 +35,14 @@ async fn create_post(
 ) -> AppResult<Json<serde_json::Value>> {
     req.validate()
         .map_err(|e| AppError::Validation(e.to_string()))?;
+    // A post must carry *something* — either text or media. Empty-everything
+    // posts are rejected here rather than in the validator derive because this
+    // is a cross-field rule.
+    if req.content.trim().is_empty() && req.media_urls.is_empty() {
+        return Err(AppError::Validation(
+            "Post must have content or at least one media attachment".to_string(),
+        ));
+    }
     let author_id = extract_user_id(&headers)?;
     let post = state.post_service.create_post(author_id, req).await?;
     Ok(Json(serde_json::to_value(&post).unwrap()))

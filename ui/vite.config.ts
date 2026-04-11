@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      // Uploaded media files are served by the gateway, not Vite.
+      "/uploads": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
       // WebSocket connections go directly to chat-service.
       // The gateway doesn't proxy WebSocket upgrades.
       "/ws": {

@@ -238,6 +238,36 @@ impl UserRepository {
         Ok(users)
     }
 
+    /// Fuzzy search users by username or display_name.
+    ///
+    /// Uses ILIKE '%q%' against both columns, which is accelerated by the
+    /// pg_trgm GIN indexes on `username` and `display_name` created in
+    /// migration 002. Ordered by follower_count DESC so popular accounts
+    /// surface first on short/ambiguous queries.
+    pub async fn search_by_name(&self, q: &str, limit: i64) -> AppResult<Vec<User>> {
+        // Use runtime-checked query_as (no `!`) so we don't need to regenerate
+        // the offline sqlx query cache for this new query. Type-safety is
+        // enforced by the `User` struct at row decoding time.
+        let pattern = format!("%{}%", q);
+        let users: Vec<User> = sqlx::query_as::<_, User>(
+            r#"
+            SELECT id, username, email, display_name, bio, avatar_url,
+                   follower_count, following_count, post_count, is_verified,
+                   created_at, updated_at
+            FROM users
+            WHERE username ILIKE $1 OR display_name ILIKE $1
+            ORDER BY follower_count DESC, username ASC
+            LIMIT $2
+            "#,
+        )
+        .bind(&pattern)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(users)
+    }
+
     pub async fn get_following(
         &self,
         user_id: Uuid,

@@ -287,6 +287,14 @@ impl UserService {
         Ok(())
     }
 
+    /// Search users by username or display name. Returns public profile
+    /// projections. No caching — search queries are high-cardinality and
+    /// cache misses would dominate.
+    pub async fn search_users(&self, q: &str, limit: i64) -> AppResult<Vec<UserProfile>> {
+        let users = self.repo.search_by_name(q, limit).await?;
+        Ok(users.into_iter().map(UserProfile::from).collect())
+    }
+
     pub async fn get_followers(
         &self,
         user_id: Uuid,

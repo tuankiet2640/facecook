@@ -1,6 +1,6 @@
 use sqlx::{
     postgres::{PgPool, PgPoolOptions},
-    ConnectOptions,
+    ConnectOptions, Executor,
 };
 use std::time::Duration;
 use tracing::log::LevelFilter;
@@ -21,6 +21,24 @@ pub async fn create_pool(config: &DatabaseConfig) -> Result<DbPool, AppError> {
         .max_connections(config.max_connections)
         .min_connections(config.min_connections)
         .acquire_timeout(Duration::from_secs(config.acquire_timeout_secs))
+        // PgBouncer transaction-mode pooling (Supabase pooler port 6543) shares
+        // backend Postgres connections across transactions. sqlx names its
+        // prepared statements with a per-Connection counter (sqlx_s_0, sqlx_s_1,
+        // ...) starting from zero, so when two sqlx Connections happen to be
+        // assigned the same backend by PgBouncer, their counters collide and we
+        // get "prepared statement \"sqlx_s_N\" already exists" errors.
+        //
+        // statement_cache_capacity(0) alone is NOT enough — it only drops
+        // sqlx's local statement handle; the statement is still allocated on
+        // the backend until the session ends. Running DEALLOCATE ALL every
+        // time the pool hands us a backend wipes any orphaned statements left
+        // by the previous tenant before our sqlx Connection starts numbering.
+        .before_acquire(|conn, _meta| {
+            Box::pin(async move {
+                conn.execute("DEALLOCATE ALL").await?;
+                Ok(true)
+            })
+        })
         .connect_with(
             config
                 .url
@@ -28,11 +46,6 @@ pub async fn create_pool(config: &DatabaseConfig) -> Result<DbPool, AppError> {
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("Invalid database URL: {}", e)))?
                 .log_statements(LevelFilter::Debug)
                 .log_slow_statements(LevelFilter::Warn, Duration::from_secs(1))
-                // PgBouncer transaction mode (Supabase pooler port 6543) does not
-                // support named prepared statements across transactions. Setting
-                // capacity=0 makes sqlx use unnamed prepared statements (Parse with
-                // empty name), which are scoped to the current query cycle and are
-                // safe to use with PgBouncer in transaction mode.
                 .statement_cache_capacity(0),
         )
         .await

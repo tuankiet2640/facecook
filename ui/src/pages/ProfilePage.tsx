@@ -5,6 +5,7 @@ import { usersApi, chatApi } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { qk } from "@/lib/queryKeys";
 import { timeAgo, initials, hashColor, cn } from "@/lib/utils";
+import type { User } from "@/types/api";
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
@@ -12,6 +13,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMe = userId === myId;
+  const [listMode, setListMode] = useState<"followers" | "following" | null>(null);
 
   const { data: user, isLoading } = useQuery({
     queryKey: qk.user(userId!),
@@ -48,6 +50,18 @@ export function ProfilePage() {
   const { mutate: startChat } = useMutation({
     mutationFn: () => chatApi.createConversation(userId!),
     onSuccess: (conv) => {
+      // Optimistically inject the new conversation into the cached list so
+      // ChatPage can render its header immediately on navigation. Without this,
+      // there's a brief window where /chat/:id renders the empty state because
+      // the list query hasn't yet refetched.
+      queryClient.setQueryData<import("@/types/api").Conversation[]>(
+        qk.conversations(),
+        (old) => {
+          if (!old) return [conv];
+          if (old.some((c) => c.id === conv.id)) return old;
+          return [conv, ...old];
+        },
+      );
       queryClient.invalidateQueries({ queryKey: qk.conversations() });
       navigate(`/chat/${conv.id}`);
     },
@@ -79,14 +93,26 @@ export function ProfilePage() {
           <p className="text-text-secondary text-sm">@{user.username}</p>
           {user.bio && <p className="text-text-primary text-sm mt-2">{user.bio}</p>}
 
-          {/* Stats */}
+          {/* Stats — clickable: toggles the friend list panel below. */}
           <div className="flex gap-5 mt-3 text-sm">
-            <span className="text-text-secondary">
+            <button
+              onClick={() => setListMode(listMode === "following" ? null : "following")}
+              className={cn(
+                "text-text-secondary hover:text-text-primary transition-colors",
+                listMode === "following" && "text-text-primary",
+              )}
+            >
               <strong className="text-text-primary">{user.following_count}</strong> Following
-            </span>
-            <span className="text-text-secondary">
+            </button>
+            <button
+              onClick={() => setListMode(listMode === "followers" ? null : "followers")}
+              className={cn(
+                "text-text-secondary hover:text-text-primary transition-colors",
+                listMode === "followers" && "text-text-primary",
+              )}
+            >
               <strong className="text-text-primary">{user.follower_count}</strong> Followers
-            </span>
+            </button>
           </div>
         </div>
       </div>
@@ -121,9 +147,81 @@ export function ProfilePage() {
         </div>
       )}
 
+      {listMode && userId && (
+        <FriendList
+          userId={userId}
+          mode={listMode}
+          onSelect={(otherId) => {
+            setListMode(null);
+            navigate(`/profile/${otherId}`);
+          }}
+        />
+      )}
+
       <p className="text-text-muted text-xs mt-6">
         Joined {timeAgo(user.created_at)}
       </p>
+    </div>
+  );
+}
+
+// Followers / following list — fetched on demand when the user clicks the
+// stats above. Each row navigates to that user's profile.
+function FriendList({
+  userId, mode, onSelect,
+}: {
+  userId: string;
+  mode: "followers" | "following";
+  onSelect: (otherId: string) => void;
+}) {
+  // Cache the raw API envelope so we share shape with the existing
+  // `following` boolean check above (same key, same cached value, no conflict).
+  const { data: resp, isLoading } = useQuery({
+    queryKey: mode === "followers" ? qk.userFollowers(userId) : qk.userFollowing(userId),
+    queryFn: () =>
+      mode === "followers"
+        ? usersApi.followers(userId, 100)
+        : usersApi.following(userId, 100),
+    staleTime: 30_000,
+  });
+  const list: User[] = resp?.data ?? [];
+
+  return (
+    <div className="mt-5 bg-surface-raised border border-surface-border rounded-xl overflow-hidden">
+      <h2 className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-text-muted border-b border-surface-border">
+        {mode === "followers" ? "Followers" : "Following"}
+      </h2>
+      {isLoading && (
+        <p className="px-4 py-3 text-sm text-text-muted">Loading…</p>
+      )}
+      {!isLoading && list.length === 0 && (
+        <p className="px-4 py-3 text-sm text-text-muted">
+          {mode === "followers" ? "No followers yet." : "Not following anyone yet."}
+        </p>
+      )}
+      {list.map((u: User) => (
+        <button
+          key={u.id}
+          onClick={() => onSelect(u.id)}
+          className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-surface-overlay transition-colors"
+        >
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+            style={{ backgroundColor: hashColor(u.id) }}
+          >
+            {u.avatar_url
+              ? <img src={u.avatar_url} className="w-full h-full rounded-full object-cover" alt={u.display_name ?? u.username} />
+              : initials(u.display_name ?? u.username)
+            }
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text-primary truncate">
+              {u.display_name ?? u.username}
+            </p>
+            <p className="text-xs text-text-muted truncate">@{u.username}</p>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

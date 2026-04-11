@@ -222,22 +222,32 @@ impl FanoutService {
             })
             .collect();
 
-        // DB fallback: if the personal Redis feed is empty, query the posts table
-        // directly for recent posts from followed users. This covers:
-        // - Users who just followed someone (no fanout yet)
-        // - Historical posts that were never fanned out (e.g., before fix was deployed)
-        // Backfill the sorted set so subsequent reads hit Redis.
-        if all_items.is_empty() {
-            let db_posts = self
-                .feed_repo
-                .get_recent_posts_from_followed_users(user_id, fetch_count as i64)
-                .await
-                .unwrap_or_default();
+        // Always merge in recent posts from followed users via DB.
+        // This is the source-of-truth fallback that covers:
+        //   - Posts created by users you followed AFTER they posted
+        //     (Redis personal feed only has fanouts that ran while you were a follower).
+        //   - The author's own posts auto-injected to their feed mean the empty-only
+        //     guard previously short-circuited and these cases were never recovered.
+        //   - Historical posts created before the fanout worker was healthy.
+        // The Redis read above is still the fast path for already-fanned-out posts;
+        // this DB query is bounded by `fetch_count` so its cost is predictable.
+        let db_posts = self
+            .feed_repo
+            .get_recent_posts_from_followed_users(user_id, fetch_count as i64)
+            .await
+            .unwrap_or_default();
 
-            for (post_id, ts_ms) in db_posts {
+        let mut seen: std::collections::HashSet<Uuid> =
+            all_items.iter().map(|i| i.post_id).collect();
+
+        for (post_id, ts_ms) in db_posts {
+            if seen.insert(post_id) {
                 let score = ts_ms as f64;
-                // Backfill Redis so future reads are fast
-                let _ = self.cache.zadd(&feed_key, score, &post_id.to_string()).await;
+                // Backfill Redis so future reads benefit from the cache.
+                let _ = self
+                    .cache
+                    .zadd(&feed_key, score, &post_id.to_string())
+                    .await;
                 all_items.push(FeedItem { post_id, score });
             }
         }

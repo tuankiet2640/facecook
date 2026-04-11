@@ -6,6 +6,7 @@ export const qk = {
   user: (userId: string) => ["users", userId] as const,
   userFollowers: (userId: string) => ["users", userId, "followers"] as const,
   userFollowing: (userId: string) => ["users", userId, "following"] as const,
+  userSearch: (q: string) => ["users", "search", q] as const,
 
   feed: () => ["feed"] as const,
   posts: (ids: string[]) => ["posts", "batch", ...ids.sort()] as const,
